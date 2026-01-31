@@ -1,3 +1,5 @@
 #!/bin/bash
 # Start Claude Code in calorie-slo project with --dangerously-skip-permissions
+# Uses local Happy Server
+export HANDY_SERVER_URL="http://localhost:3005"
 cd /Users/tandryukha/calorie-slo && happy --claude-arg "--dangerously-skip-permissions"

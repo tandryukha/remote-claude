@@ -2,20 +2,26 @@
 
 Access Claude Code sessions from your phone at the gym. Fully self-hosted for security.
 
-## Quick Start
+## Quick Start (Mobile Access)
 
 ```bash
-# Reload shell config
+# Reload shell config (first time only)
 source ~/.zshrc
 
-# Start a tunnel for the Happy Server
-tunnel 3005 happy-api    # Copy the URL that appears
+# Terminal 1: Start API tunnel
+tunnel-happy-api         # Copy the URL (e.g., https://xxx.trycloudflare.com)
 
-# In another terminal, start Claude in your project
+# Terminal 2: Start web UI with tunneled API URL
+happy-web https://xxx.trycloudflare.com
+
+# Terminal 3: Start web UI tunnel
+tunnel-happy-web         # Use THIS URL on your phone
+
+# Terminal 4: Start Claude in your project
 calorie                  # or: dropship
 ```
 
-Scan the QR code from your phone to connect.
+Open the web UI tunnel URL on your phone, scan QR code to connect.
 
 ---
 
@@ -23,12 +29,18 @@ Scan the QR code from your phone to connect.
 
 | Command | Description |
 |---------|-------------|
+| **Claude Sessions** | |
 | `calorie` | Start Claude in calorie-slo with --dangerously-skip-permissions |
 | `dropship` | Start Claude in dropshipping-irondust with --dangerously-skip-permissions |
+| **Happy (Self-Hosted)** | |
+| `happy-web [API_URL]` | Start web UI (pass tunneled API URL for mobile) |
+| `tunnel-happy-api` | Expose Happy Server API (port 3005) |
+| `tunnel-happy-web` | Expose Happy Web UI (port 8081) |
+| **App Testing** | |
 | `tunnel <port> <name>` | Create a tunnel to any local port |
 | `tunnel-calorie` | Expose localhost:3000 for mobile testing |
 | `tunnel-dropship` | Expose localhost:5173 for mobile testing |
-| `happy-web` | Start the self-hosted web UI |
+| **Shutdown** | |
 | `happy-stop` | Stop all happy processes |
 | `tunnel-stop` | Stop all tunnels |
 | `happy-shutdown` | Stop everything |

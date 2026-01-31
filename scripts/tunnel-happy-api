@@ -1,0 +1,4 @@
+#!/bin/bash
+# Expose Happy Server API (port 3005) via Cloudflare tunnel
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/tunnel" 3005 happy-api

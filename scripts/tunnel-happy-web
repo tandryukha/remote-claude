@@ -1,0 +1,4 @@
+#!/bin/bash
+# Expose Happy web UI (Expo runs on port 8081) via Cloudflare tunnel
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/tunnel" 8081 happy-web

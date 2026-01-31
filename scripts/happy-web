@@ -1,3 +1,21 @@
 #!/bin/bash
 # Start the self-hosted Happy web UI
+#
+# Usage: happy-web [API_TUNNEL_URL]
+#   If no URL provided, uses localhost (for local testing only)
+#   For mobile access, provide the tunneled API URL:
+#   Example: happy-web https://xxx-yyy-zzz.trycloudflare.com
+#
+# Typical flow for mobile:
+#   1. Run: tunnel-happy-api  (copy the URL)
+#   2. Run: happy-web <paste-url-here>
+#   3. Run: tunnel-happy-web  (use this URL on phone)
+
+API_URL="${1:-http://localhost:3005}"
+export EXPO_PUBLIC_SERVER_URL="$API_URL"
+
+echo "Starting Happy Web UI..."
+echo "API URL: $API_URL"
+echo ""
+
 cd ~/happy/packages/happy-app && yarn web
