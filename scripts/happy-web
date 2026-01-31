@@ -1,0 +1,3 @@
+#!/bin/bash
+# Start the self-hosted Happy web UI
+cd ~/happy/packages/happy-app && yarn web

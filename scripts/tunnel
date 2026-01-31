@@ -1,0 +1,32 @@
+#!/bin/bash
+# Usage: tunnel <port> [name]
+# Example: tunnel 3005 happy-api
+# Starts a Cloudflare Quick Tunnel and displays/copies the URL
+
+PORT=$1
+NAME=${2:-"port-$PORT"}
+
+if [ -z "$PORT" ]; then
+  echo "Usage: tunnel <port> [name]"
+  echo "Example: tunnel 3005 happy-api"
+  exit 1
+fi
+
+echo "Starting tunnel for $NAME on port $PORT..."
+echo "Waiting for URL..."
+
+cloudflared tunnel --url http://localhost:$PORT 2>&1 | while read line; do
+  if [[ $line == *"trycloudflare.com"* ]]; then
+    URL=$(echo "$line" | grep -oE 'https://[^ ]+trycloudflare.com')
+    if [ -n "$URL" ]; then
+      echo ""
+      echo "========================================"
+      echo "🔗 $NAME: $URL"
+      echo "========================================"
+      echo "$URL" | pbcopy
+      echo "(Copied to clipboard)"
+      echo ""
+    fi
+  fi
+  echo "$line"
+done

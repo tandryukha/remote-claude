@@ -1,0 +1,3 @@
+#!/bin/bash
+# Start Claude Code in calorie-slo project with --dangerously-skip-permissions
+cd /Users/tandryukha/calorie-slo && happy --claude-arg "--dangerously-skip-permissions"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# Stop all happy processes
+pkill -f "happy" 2>/dev/null && echo "Happy processes stopped" || echo "No happy processes running"

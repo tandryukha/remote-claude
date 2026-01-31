@@ -1,0 +1,9 @@
+#!/bin/bash
+# Stop everything: happy processes, tunnels, and Docker containers
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+"$SCRIPT_DIR/happy-stop"
+"$SCRIPT_DIR/tunnel-stop"
+
+cd ~/happy-server && docker-compose down
+echo "All services stopped"

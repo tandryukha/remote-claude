@@ -1,0 +1,3 @@
+#!/bin/bash
+# Start Claude Code in dropshipping-irondust project with --dangerously-skip-permissions
+cd /Users/tandryukha/dropshipping-irondust && happy --claude-arg "--dangerously-skip-permissions"

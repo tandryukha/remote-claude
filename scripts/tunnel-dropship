@@ -1,0 +1,4 @@
+#!/bin/bash
+# Expose dropship app (port 5173) via Cloudflare tunnel
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/tunnel" 5173 dropship-app
