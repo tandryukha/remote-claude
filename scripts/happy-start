@@ -6,8 +6,9 @@ echo "Starting Happy Mobile Access"
 echo "========================================"
 echo ""
 
-# Cleanup temp files
-rm -f /tmp/happy-api-url.txt /tmp/happy-web-url.txt
+# Cleanup
+rm -f /tmp/happy-api-tunnel.log /tmp/happy-web-tunnel.log /tmp/happy-web.log
+pkill -f "cloudflared tunnel" 2>/dev/null
 
 # 1. Ensure Happy Server is running
 echo "[1/4] Starting Happy Server..."
@@ -19,30 +20,31 @@ else
     sleep 3
 fi
 
-# Verify server is healthy
 if ! curl -s http://localhost:3005/health > /dev/null 2>&1; then
-    echo "ERROR: Happy Server not responding. Run: cd ~/happy-server && docker-compose up -d"
+    echo "ERROR: Happy Server not responding"
+    echo "Run: cd ~/happy-server && docker-compose up -d"
     exit 1
 fi
-echo "      OK - http://localhost:3005"
+echo "      OK"
 echo ""
 
-# 2. Start API tunnel in background
-echo "[2/4] Starting API tunnel..."
+# 2. Start API tunnel
+echo "[2/4] Starting API tunnel (takes ~10s)..."
 cloudflared tunnel --url http://localhost:3005 > /tmp/happy-api-tunnel.log 2>&1 &
 API_PID=$!
 
-# Wait for URL to appear in log
-for i in {1..30}; do
-    if grep -q "trycloudflare.com" /tmp/happy-api-tunnel.log 2>/dev/null; then
-        API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-api-tunnel.log | head -1)
+API_URL=""
+for i in {1..45}; do
+    # Look for actual URL in the box output
+    API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-api-tunnel.log 2>/dev/null | head -1)
+    if [ -n "$API_URL" ]; then
         break
     fi
     sleep 1
 done
 
 if [ -z "$API_URL" ]; then
-    echo "ERROR: Failed to get API tunnel URL. Check /tmp/happy-api-tunnel.log"
+    echo "ERROR: Tunnel failed"
     cat /tmp/happy-api-tunnel.log
     kill $API_PID 2>/dev/null
     exit 1
@@ -50,38 +52,44 @@ fi
 echo "      $API_URL"
 echo ""
 
-# 3. Start Web UI with tunneled API
-echo "[3/4] Starting Happy Web UI..."
+# 3. Start Web UI
+echo "[3/4] Starting Web UI..."
 cd ~/happy/packages/happy-app
 EXPO_PUBLIC_SERVER_URL="$API_URL" yarn web > /tmp/happy-web.log 2>&1 &
 WEB_PID=$!
 
-# Wait for web server to start
-for i in {1..30}; do
+# Wait for web server
+for i in {1..45}; do
     if curl -s http://localhost:8081 > /dev/null 2>&1; then
         break
     fi
     sleep 1
 done
-echo "      http://localhost:8081"
+
+if ! curl -s http://localhost:8081 > /dev/null 2>&1; then
+    echo "ERROR: Web UI failed to start"
+    cat /tmp/happy-web.log | tail -20
+    exit 1
+fi
+echo "      OK"
 echo ""
 
 # 4. Start Web UI tunnel
-echo "[4/4] Starting Web UI tunnel..."
+echo "[4/4] Starting Web UI tunnel (takes ~10s)..."
 cloudflared tunnel --url http://localhost:8081 > /tmp/happy-web-tunnel.log 2>&1 &
 WEB_TUNNEL_PID=$!
 
-# Wait for URL
-for i in {1..30}; do
-    if grep -q "trycloudflare.com" /tmp/happy-web-tunnel.log 2>/dev/null; then
-        WEB_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-web-tunnel.log | head -1)
+WEB_URL=""
+for i in {1..45}; do
+    WEB_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-web-tunnel.log 2>/dev/null | head -1)
+    if [ -n "$WEB_URL" ]; then
         break
     fi
     sleep 1
 done
 
 if [ -z "$WEB_URL" ]; then
-    echo "ERROR: Failed to get Web tunnel URL. Check /tmp/happy-web-tunnel.log"
+    echo "ERROR: Web tunnel failed"
     cat /tmp/happy-web-tunnel.log
     exit 1
 fi
@@ -89,7 +97,7 @@ fi
 # Done!
 echo ""
 echo "========================================"
-echo "READY! Open this URL on your phone:"
+echo "READY! Open on your phone:"
 echo ""
 echo "  $WEB_URL"
 echo ""
@@ -97,14 +105,13 @@ echo "$WEB_URL" | pbcopy
 echo "(Copied to clipboard)"
 echo "========================================"
 echo ""
-echo "Now run 'calorie' or 'dropship' in another terminal."
-echo "Press Ctrl+C to stop all services."
+echo "Run 'calorie' or 'dropship' in another terminal."
+echo "Press Ctrl+C to stop."
 echo ""
 
-# Handle cleanup on exit
 cleanup() {
     echo ""
-    echo "Stopping services..."
+    echo "Stopping..."
     kill $API_PID $WEB_PID $WEB_TUNNEL_PID 2>/dev/null
     pkill -f "cloudflared tunnel" 2>/dev/null
     echo "Done"
@@ -112,5 +119,4 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-# Keep script running
 wait
