@@ -2,26 +2,17 @@
 
 Access Claude Code sessions from your phone at the gym. Fully self-hosted for security.
 
-## Quick Start (Mobile Access)
+## Quick Start
 
 ```bash
-# Reload shell config (first time only)
-source ~/.zshrc
+# Terminal 1: Start everything
+happy-start
 
-# Terminal 1: Start API tunnel
-tunnel-happy-api         # Copy the URL (e.g., https://xxx.trycloudflare.com)
-
-# Terminal 2: Start web UI with tunneled API URL
-happy-web https://xxx.trycloudflare.com
-
-# Terminal 3: Start web UI tunnel
-tunnel-happy-web         # Use THIS URL on your phone
-
-# Terminal 4: Start Claude in your project
-calorie                  # or: dropship
+# Terminal 2: Start Claude session
+calorie    # or: dropship
 ```
 
-Open the web UI tunnel URL on your phone, scan QR code to connect.
+That's it! `happy-start` launches the server, web UI, and tunnels. Open the URL on your phone.
 
 ---
 
@@ -29,10 +20,13 @@ Open the web UI tunnel URL on your phone, scan QR code to connect.
 
 | Command | Description |
 |---------|-------------|
+| **Main** | |
+| `happy-start` | Start everything (server + tunnels + web UI) |
+| `happy-shutdown` | Stop everything |
 | **Claude Sessions** | |
 | `calorie` | Start Claude in calorie-slo with --dangerously-skip-permissions |
 | `dropship` | Start Claude in dropshipping-irondust with --dangerously-skip-permissions |
-| **Happy (Self-Hosted)** | |
+| **Happy (Manual)** | |
 | `happy-web [API_URL]` | Start web UI (pass tunneled API URL for mobile) |
 | `tunnel-happy-api` | Expose Happy Server API (port 3005) |
 | `tunnel-happy-web` | Expose Happy Web UI (port 8081) |
@@ -71,7 +65,7 @@ All components run on your machine. End-to-end encrypted.
 | Service | Port | Purpose |
 |---------|------|---------|
 | Happy Server | 3005 | API relay (Docker) |
-| Happy Web | 3006 | Web UI (optional) |
+| Happy Web | 8081 | Web UI (Expo) |
 | PostgreSQL | 5432 | Database (Docker) |
 | Redis | 6379 | Cache (Docker) |
 | MinIO | 9000 | File storage (Docker) |

@@ -1,0 +1,131 @@
+#!/bin/bash
+# Start everything for mobile Claude access with one command
+# Starts: Happy Server (Docker), API tunnel, Web UI, Web UI tunnel
+
+set -e
+
+echo "========================================"
+echo "Starting Happy Mobile Access"
+echo "========================================"
+echo ""
+
+# 1. Ensure Happy Server is running
+echo "[1/4] Starting Happy Server..."
+cd ~/happy-server
+if docker-compose ps | grep -q "happy-server.*Up"; then
+    echo "      Already running"
+else
+    docker-compose up -d
+    sleep 3
+fi
+
+# Verify server is healthy
+if ! curl -s http://localhost:3005/health > /dev/null; then
+    echo "ERROR: Happy Server failed to start"
+    exit 1
+fi
+echo "      OK - http://localhost:3005"
+echo ""
+
+# 2. Start API tunnel and capture URL
+echo "[2/4] Starting API tunnel..."
+API_URL=""
+cloudflared tunnel --url http://localhost:3005 2>&1 | while read line; do
+    echo "$line" >> /tmp/happy-api-tunnel.log
+    if [[ $line == *"trycloudflare.com"* ]]; then
+        URL=$(echo "$line" | grep -oE 'https://[^ ]+trycloudflare.com')
+        if [ -n "$URL" ]; then
+            echo "$URL" > /tmp/happy-api-url.txt
+            echo "      $URL"
+        fi
+    fi
+done &
+API_TUNNEL_PID=$!
+
+# Wait for API URL
+echo "      Waiting for tunnel..."
+for i in {1..30}; do
+    if [ -f /tmp/happy-api-url.txt ]; then
+        API_URL=$(cat /tmp/happy-api-url.txt)
+        break
+    fi
+    sleep 1
+done
+
+if [ -z "$API_URL" ]; then
+    echo "ERROR: Failed to get API tunnel URL"
+    exit 1
+fi
+echo ""
+
+# 3. Start Web UI with tunneled API
+echo "[3/4] Starting Happy Web UI..."
+export EXPO_PUBLIC_SERVER_URL="$API_URL"
+cd ~/happy/packages/happy-app
+yarn web > /tmp/happy-web.log 2>&1 &
+WEB_PID=$!
+sleep 5
+echo "      Running on http://localhost:8081"
+echo ""
+
+# 4. Start Web UI tunnel
+echo "[4/4] Starting Web UI tunnel..."
+WEB_URL=""
+cloudflared tunnel --url http://localhost:8081 2>&1 | while read line; do
+    echo "$line" >> /tmp/happy-web-tunnel.log
+    if [[ $line == *"trycloudflare.com"* ]]; then
+        URL=$(echo "$line" | grep -oE 'https://[^ ]+trycloudflare.com')
+        if [ -n "$URL" ]; then
+            echo "$URL" > /tmp/happy-web-url.txt
+            echo "      $URL"
+        fi
+    fi
+done &
+WEB_TUNNEL_PID=$!
+
+# Wait for Web URL
+echo "      Waiting for tunnel..."
+for i in {1..30}; do
+    if [ -f /tmp/happy-web-url.txt ]; then
+        WEB_URL=$(cat /tmp/happy-web-url.txt)
+        break
+    fi
+    sleep 1
+done
+
+if [ -z "$WEB_URL" ]; then
+    echo "ERROR: Failed to get Web UI tunnel URL"
+    exit 1
+fi
+
+# Done!
+echo ""
+echo "========================================"
+echo "READY! Open this URL on your phone:"
+echo ""
+echo "  $WEB_URL"
+echo ""
+echo "$WEB_URL" | pbcopy
+echo "(Copied to clipboard)"
+echo "========================================"
+echo ""
+echo "Now run 'calorie' or 'dropship' to start a Claude session."
+echo "Press Ctrl+C to stop all services."
+echo ""
+
+# Save PIDs for cleanup
+echo "$API_TUNNEL_PID $WEB_PID $WEB_TUNNEL_PID" > /tmp/happy-pids.txt
+
+# Keep running and handle cleanup
+cleanup() {
+    echo ""
+    echo "Stopping services..."
+    pkill -f "cloudflared tunnel" 2>/dev/null
+    pkill -f "expo.*web" 2>/dev/null
+    rm -f /tmp/happy-*.txt /tmp/happy-*.log
+    echo "Done"
+}
+trap cleanup EXIT
+
+# Wait forever
+wait
