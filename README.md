@@ -94,6 +94,28 @@ cd ~/happy-server && docker-compose logs -f happy-server
 
 # Restart everything
 cd ~/happy-server && docker-compose down && docker-compose up -d
+
+# If database tables missing, rebuild with migrations
+cd ~/happy-server && docker-compose down && docker-compose build --no-cache && docker-compose up -d
+```
+
+## Initial Setup (one-time)
+
+The happy-server Dockerfile needs a fix to include prisma migrations. After cloning:
+
+```bash
+# 1. Clone repos
+git clone https://github.com/slopus/happy-server ~/happy-server
+git clone https://github.com/slopus/happy ~/happy
+
+# 2. Copy docker-compose.yml from this repo
+cp ~/remote-claude/config/docker-compose.yml ~/happy-server/
+
+# 3. Patch Dockerfile to include prisma and migrations
+# (see config/Dockerfile.patch)
+
+# 4. Build and start
+cd ~/happy-server && docker-compose up -d
 ```
 
 ---
