@@ -14,6 +14,13 @@ calorie    # or: dropship
 
 That's it! `happy-start` launches the server, web UI, and tunnels. Open the URL on your phone.
 
+### First Time Setup
+1. Open the tunnel URL in your browser (copied to clipboard)
+2. Click "Create account" to create a local account
+3. Run `calorie` or `dropship` in another terminal
+4. When prompted for auth, select "Web Browser" - it will open your local web UI
+5. Approve the connection
+
 ---
 
 ## Commands
@@ -117,6 +124,20 @@ cp ~/remote-claude/config/docker-compose.yml ~/happy-server/
 # 4. Build and start
 cd ~/happy-server && docker-compose up -d
 ```
+
+---
+
+## Environment Variables
+
+The scripts automatically set these for self-hosted operation:
+
+| Variable | Purpose |
+|----------|---------|
+| `HAPPY_SERVER_URL` | API server URL (localhost:3005) |
+| `HAPPY_WEBAPP_URL` | Web UI URL for CLI auth (tunneled URL) |
+| `EXPO_PUBLIC_SERVER_URL` | API URL for web UI (tunneled URL) |
+
+Tunnel URLs are saved to `/tmp/happy-api-url` and `/tmp/happy-web-url` for scripts to read.
 
 ---
 

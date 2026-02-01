@@ -94,6 +94,10 @@ if [ -z "$WEB_URL" ]; then
     exit 1
 fi
 
+# Save URLs for other scripts
+echo "$API_URL" > /tmp/happy-api-url
+echo "$WEB_URL" > /tmp/happy-web-url
+
 # Done!
 echo ""
 echo "========================================"

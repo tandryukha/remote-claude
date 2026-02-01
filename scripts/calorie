@@ -1,5 +1,12 @@
 #!/bin/bash
 # Start Claude Code in calorie-slo project with --dangerously-skip-permissions
 # Uses local Happy Server
+
 export HAPPY_SERVER_URL="http://localhost:3005"
+
+# Set webapp URL to local tunneled UI (for web browser auth)
+if [ -f /tmp/happy-web-url ]; then
+    export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
+fi
+
 cd /Users/tandryukha/calorie-slo && happy --claude-arg "--dangerously-skip-permissions"
