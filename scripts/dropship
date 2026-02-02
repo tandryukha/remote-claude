@@ -11,7 +11,26 @@ fi
 export HAPPY_SERVER_URL="http://localhost:3005"
 export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
 
+# Check if credentials exist
+if [ ! -f ~/.happy/access.key ]; then
+    echo "========================================"
+    echo "First-time setup required!"
+    echo "========================================"
+    echo ""
+    echo "1. Open: $HAPPY_WEBAPP_URL"
+    echo "2. Click 'Create account' if not logged in"
+    echo "3. Then come back here and press Enter"
+    echo ""
+    read -p "Press Enter when logged in on web UI..."
+    echo ""
+    echo "Starting authentication..."
+    echo "Select 'Web Browser' and click 'Accept Connection' in browser"
+    echo ""
+    happy auth login
+    echo ""
+fi
+
+# Start session
 echo "Using web UI: $HAPPY_WEBAPP_URL"
 echo ""
-
 cd /Users/tandryukha/dropshipping-irondust && happy --yolo

@@ -1,0 +1,48 @@
+#!/bin/bash
+# ONE-TIME SETUP for Happy CLI
+# After running this once, calorie/dropship will work automatically
+
+echo "========================================"
+echo "Happy CLI One-Time Setup"
+echo "========================================"
+
+# Check prerequisites
+if [ ! -f /tmp/happy-web-url ]; then
+    echo ""
+    echo "ERROR: Run 'happy-start' first in another terminal!"
+    exit 1
+fi
+
+export HAPPY_SERVER_URL="http://localhost:3005"
+export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
+
+echo ""
+echo "Web UI: $HAPPY_WEBAPP_URL"
+echo ""
+
+# Check if already set up
+if [ -f ~/.happy/access.key ]; then
+    echo "Already authenticated! (found ~/.happy/access.key)"
+    echo ""
+    echo "To re-authenticate, delete ~/.happy/access.key and run this again"
+    exit 0
+fi
+
+# Clean up any existing processes
+echo "Cleaning up..."
+pkill -f "happy.*daemon" 2>/dev/null || true
+rm -f ~/.happy/daemon.state.json.lock 2>/dev/null || true
+sleep 1
+
+echo ""
+echo "INSTRUCTIONS:"
+echo "============="
+echo "1. This will open a browser window"
+echo "2. If needed, click 'Create account' first"
+echo "3. Then click 'Accept Connection' to authorize"
+echo ""
+echo "Starting happy auth..."
+echo ""
+
+# Run auth - this is interactive
+exec happy auth login
