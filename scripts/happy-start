@@ -1,14 +1,23 @@
 #!/bin/bash
 # Start everything for mobile Claude access with one command
+# Includes health monitoring and auto-restart for tunnels
+
+set -e
+
+# Config
+API_PORT=3005
+WEB_PORT=8081
+HEALTH_CHECK_INTERVAL=30
 
 echo "========================================"
 echo "Starting Happy Mobile Access"
 echo "========================================"
 echo ""
 
-# Cleanup
+# Cleanup previous
 rm -f /tmp/happy-api-tunnel.log /tmp/happy-web-tunnel.log /tmp/happy-web.log
-pkill -f "cloudflared tunnel" 2>/dev/null
+pkill -f "cloudflared tunnel" 2>/dev/null || true
+pkill -f "expo.*start.*web" 2>/dev/null || true
 
 # 1. Ensure Happy Server is running
 echo "[1/4] Starting Happy Server..."
@@ -20,7 +29,7 @@ else
     sleep 3
 fi
 
-if ! curl -s http://localhost:3005/health > /dev/null 2>&1; then
+if ! curl -s http://localhost:$API_PORT/health > /dev/null 2>&1; then
     echo "ERROR: Happy Server not responding"
     echo "Run: cd ~/happy-server && docker-compose up -d"
     exit 1
@@ -28,25 +37,53 @@ fi
 echo "      OK"
 echo ""
 
-# 2. Start API tunnel
-echo "[2/4] Starting API tunnel (takes ~10s)..."
-cloudflared tunnel --url http://localhost:3005 > /tmp/happy-api-tunnel.log 2>&1 &
-API_PID=$!
-
-API_URL=""
-for i in {1..45}; do
-    # Look for actual URL in the box output
-    API_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-api-tunnel.log 2>/dev/null | head -1)
-    if [ -n "$API_URL" ]; then
-        break
-    fi
+# Function to start API tunnel and get URL
+start_api_tunnel() {
+    pkill -f "cloudflared.*:$API_PORT" 2>/dev/null || true
     sleep 1
-done
+    cloudflared tunnel --url http://localhost:$API_PORT > /tmp/happy-api-tunnel.log 2>&1 &
+    echo $!
+}
 
+# Function to get tunnel URL from log
+get_tunnel_url() {
+    local log_file=$1
+    local url=""
+    for i in {1..30}; do
+        url=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$log_file" 2>/dev/null | head -1)
+        if [ -n "$url" ]; then
+            echo "$url"
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
+# Function to start web UI with API URL
+start_web_ui() {
+    local api_url=$1
+    pkill -f "expo.*start.*web" 2>/dev/null || true
+    sleep 1
+    cd ~/happy/packages/happy-app
+    EXPO_PUBLIC_SERVER_URL="$api_url" yarn web > /tmp/happy-web.log 2>&1 &
+    echo $!
+}
+
+# Function to start web tunnel
+start_web_tunnel() {
+    pkill -f "cloudflared.*:$WEB_PORT" 2>/dev/null || true
+    sleep 1
+    cloudflared tunnel --url http://localhost:$WEB_PORT > /tmp/happy-web-tunnel.log 2>&1 &
+    echo $!
+}
+
+# 2. Start API tunnel
+echo "[2/4] Starting API tunnel..."
+API_PID=$(start_api_tunnel)
+API_URL=$(get_tunnel_url /tmp/happy-api-tunnel.log)
 if [ -z "$API_URL" ]; then
-    echo "ERROR: Tunnel failed"
-    cat /tmp/happy-api-tunnel.log
-    kill $API_PID 2>/dev/null
+    echo "ERROR: API tunnel failed"
     exit 1
 fi
 echo "      $API_URL"
@@ -54,49 +91,37 @@ echo ""
 
 # 3. Start Web UI
 echo "[3/4] Starting Web UI..."
-cd ~/happy/packages/happy-app
-EXPO_PUBLIC_SERVER_URL="$API_URL" yarn web > /tmp/happy-web.log 2>&1 &
-WEB_PID=$!
+WEB_PID=$(start_web_ui "$API_URL")
 
 # Wait for web server
 for i in {1..45}; do
-    if curl -s http://localhost:8081 > /dev/null 2>&1; then
+    if curl -s http://localhost:$WEB_PORT > /dev/null 2>&1; then
         break
     fi
     sleep 1
 done
 
-if ! curl -s http://localhost:8081 > /dev/null 2>&1; then
+if ! curl -s http://localhost:$WEB_PORT > /dev/null 2>&1; then
     echo "ERROR: Web UI failed to start"
-    cat /tmp/happy-web.log | tail -20
+    tail -20 /tmp/happy-web.log
     exit 1
 fi
 echo "      OK"
 echo ""
 
 # 4. Start Web UI tunnel
-echo "[4/4] Starting Web UI tunnel (takes ~10s)..."
-cloudflared tunnel --url http://localhost:8081 > /tmp/happy-web-tunnel.log 2>&1 &
-WEB_TUNNEL_PID=$!
-
-WEB_URL=""
-for i in {1..45}; do
-    WEB_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/happy-web-tunnel.log 2>/dev/null | head -1)
-    if [ -n "$WEB_URL" ]; then
-        break
-    fi
-    sleep 1
-done
-
+echo "[4/4] Starting Web UI tunnel..."
+WEB_TUNNEL_PID=$(start_web_tunnel)
+WEB_URL=$(get_tunnel_url /tmp/happy-web-tunnel.log)
 if [ -z "$WEB_URL" ]; then
     echo "ERROR: Web tunnel failed"
-    cat /tmp/happy-web-tunnel.log
     exit 1
 fi
 
-# Save URLs for other scripts
+# Save URLs
 echo "$API_URL" > /tmp/happy-api-url
 echo "$WEB_URL" > /tmp/happy-web-url
+date +%s > /tmp/happy-start-time
 
 # Done!
 echo ""
@@ -109,18 +134,58 @@ echo "$WEB_URL" | pbcopy
 echo "(Copied to clipboard)"
 echo "========================================"
 echo ""
-echo "Run 'calorie' or 'dropship' in another terminal."
+echo "Commands: calorie, dropship, happy-urls"
 echo "Press Ctrl+C to stop."
 echo ""
 
 cleanup() {
     echo ""
-    echo "Stopping..."
-    kill $API_PID $WEB_PID $WEB_TUNNEL_PID 2>/dev/null
-    pkill -f "cloudflared tunnel" 2>/dev/null
+    echo "Stopping all services..."
+    pkill -f "cloudflared tunnel" 2>/dev/null || true
+    pkill -f "expo.*start.*web" 2>/dev/null || true
+    rm -f /tmp/happy-api-url /tmp/happy-web-url /tmp/happy-start-time
     echo "Done"
     exit 0
 }
 trap cleanup INT TERM
 
-wait
+# Health monitoring loop
+echo "[Monitoring] Checking tunnel health every ${HEALTH_CHECK_INTERVAL}s..."
+echo ""
+
+while true; do
+    sleep $HEALTH_CHECK_INTERVAL
+
+    # Check API tunnel
+    if ! curl -s --max-time 5 "$API_URL/health" > /dev/null 2>&1; then
+        echo ""
+        echo "[$(date +%H:%M:%S)] API tunnel down, restarting..."
+        API_PID=$(start_api_tunnel)
+        NEW_API_URL=$(get_tunnel_url /tmp/happy-api-tunnel.log)
+        if [ -n "$NEW_API_URL" ] && [ "$NEW_API_URL" != "$API_URL" ]; then
+            API_URL="$NEW_API_URL"
+            echo "      New API URL: $API_URL"
+            echo "$API_URL" > /tmp/happy-api-url
+
+            # Restart web UI with new API URL
+            echo "      Restarting Web UI..."
+            WEB_PID=$(start_web_ui "$API_URL")
+            sleep 5
+        fi
+    fi
+
+    # Check Web tunnel
+    if ! curl -s --max-time 5 "$WEB_URL" > /dev/null 2>&1; then
+        echo ""
+        echo "[$(date +%H:%M:%S)] Web tunnel down, restarting..."
+        WEB_TUNNEL_PID=$(start_web_tunnel)
+        NEW_WEB_URL=$(get_tunnel_url /tmp/happy-web-tunnel.log)
+        if [ -n "$NEW_WEB_URL" ]; then
+            WEB_URL="$NEW_WEB_URL"
+            echo "      New Web URL: $WEB_URL"
+            echo "$WEB_URL" > /tmp/happy-web-url
+            echo "$WEB_URL" | pbcopy
+            echo "      (Copied to clipboard)"
+        fi
+    fi
+done

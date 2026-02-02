@@ -1,12 +1,17 @@
 #!/bin/bash
 # Start Claude Code in calorie-slo project with --dangerously-skip-permissions
-# Uses local Happy Server
+
+# Check if happy-start is running
+if [ ! -f /tmp/happy-web-url ]; then
+    echo "ERROR: happy-start is not running"
+    echo "Run 'happy-start' in another terminal first"
+    exit 1
+fi
 
 export HAPPY_SERVER_URL="http://localhost:3005"
+export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
 
-# Set webapp URL to local tunneled UI (for web browser auth)
-if [ -f /tmp/happy-web-url ]; then
-    export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
-fi
+echo "Using web UI: $HAPPY_WEBAPP_URL"
+echo ""
 
 cd /Users/tandryukha/calorie-slo && happy --claude-arg "--dangerously-skip-permissions"

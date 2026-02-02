@@ -1,0 +1,43 @@
+#!/bin/bash
+# Show current Happy tunnel URLs
+
+if [ ! -f /tmp/happy-web-url ] || [ ! -f /tmp/happy-api-url ]; then
+    echo "Happy is not running. Start with: happy-start"
+    exit 1
+fi
+
+WEB_URL=$(cat /tmp/happy-web-url)
+API_URL=$(cat /tmp/happy-api-url)
+START_TIME=$(cat /tmp/happy-start-time 2>/dev/null || echo "0")
+NOW=$(date +%s)
+UPTIME=$((NOW - START_TIME))
+UPTIME_MIN=$((UPTIME / 60))
+
+echo ""
+echo "Happy URLs (uptime: ${UPTIME_MIN}m)"
+echo "========================================"
+echo ""
+echo "Web UI (phone):  $WEB_URL"
+echo "API Server:      $API_URL"
+echo ""
+
+# Check health
+if curl -s --max-time 3 "$WEB_URL" > /dev/null 2>&1; then
+    echo "Web tunnel:      OK"
+else
+    echo "Web tunnel:      DOWN"
+fi
+
+if curl -s --max-time 3 "$API_URL/health" > /dev/null 2>&1; then
+    echo "API tunnel:      OK"
+else
+    echo "API tunnel:      DOWN"
+fi
+
+echo ""
+
+# Copy option
+if [ "$1" = "-c" ] || [ "$1" = "--copy" ]; then
+    echo "$WEB_URL" | pbcopy
+    echo "(Web URL copied to clipboard)"
+fi
