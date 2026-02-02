@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Claude Code in dropshipping-irondust project with --dangerously-skip-permissions
+# Start Claude Code in dropshipping-irondust project with bypass permissions (yolo mode)
 
 # Check if happy-start is running
 if [ ! -f /tmp/happy-web-url ]; then
@@ -14,4 +14,4 @@ export HAPPY_WEBAPP_URL=$(cat /tmp/happy-web-url)
 echo "Using web UI: $HAPPY_WEBAPP_URL"
 echo ""
 
-cd /Users/tandryukha/dropshipping-irondust && happy --claude-arg "--dangerously-skip-permissions"
+cd /Users/tandryukha/dropshipping-irondust && happy --yolo
